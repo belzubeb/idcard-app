@@ -1,0 +1,22 @@
+# ==== Kredensial database lokal (JANGAN pernah di-commit) ====
+# Salin dari config/database.example.php, lalu isi kredensial asli di sini.
+config/database.php
+
+# ==== Data runtime: background kartu yang di-upload user ====
+uploads/templates/*
+!uploads/templates/.gitkeep
+
+# ==== Artefak insiden berisi data karyawan (JANGAN di-commit) ====
+binlog_decoded.txt
+restore_karyawan.php
+*.bin
+
+# ==== File OS / editor ====
+Thumbs.db
+Desktop.ini
+.DS_Store
+.vscode/
+.idea/
+
+# ==== Log ====
+*.log
