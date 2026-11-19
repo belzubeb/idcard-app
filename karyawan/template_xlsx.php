@@ -1,41 +1,31 @@
 <?php
 /**
  * karyawan/template_xlsx.php
- * Generate & download file .xlsx kosong (+ 1 baris contoh) buat diisi lalu
- * di-upload lewat karyawan/import.php. Sheet kedua berisi daftar kode master
- * (Departemen/Jabatan/Status/LPK) yang sedang ada di database, biar user tau
- * kode apa yang valid dipakai.
+ * Generate & download template import karyawan (.xlsx).
+ *
+ * Kolom yang dipakai (cukup 5):
+ *   NIK, NamaLengkap, NamaIDCard, Status, Aktif
+ *
+ * - Status  : dropdown MAGANG / KONTRAK / TETAP (diterjemahkan ke kode DB saat import)
+ * - Aktif   : dropdown Y / N
+ * - NamaIDCard otomatis diubah ke HURUF KAPITAL oleh sistem saat import.
+ * - JK, TglMasuk, Departemen, Jabatan & LPK tidak lagi ada di template.
+ *
+ * TIDAK ada baris contoh: template sengaja dikosongkan supaya upload apa adanya
+ * tidak pernah menimpa/menambah data karyawan. Isi mulai baris 2.
  */
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/xlsx_lite.php';
-require_once __DIR__ . '/../includes/master_helper.php';
 
-$headers = ['NIK', 'NamaLengkap', 'NamaIDCard', 'JK', 'KodeDepartemen', 'KodeJabatan', 'KodeStatus', 'KodeLPK', 'TglMasuk', 'Aktif'];
-$exampleRows = [
-    ['22660004', 'Akhdan Najib Ramadhan', 'AKHDAN NAJIB', 'L', 'PRD', 'OPR', 'KONTRAK', '', date('Y-m-d'), 'Y'],
-];
+$headers = ['NIK', 'NamaLengkap', 'NamaIDCard', 'Status', 'Aktif'];
+$rows = []; // sengaja kosong — lihat catatan di atas
 
-// ---- Sheet referensi kode dari master data yang ada sekarang ----
-$refRows = [];
-$masterList = getMasterTableList();
-foreach ($masterList as $key => $info) {
-    $meta = getMasterMeta($koneksi, $info['table']);
-    if ($meta === null) continue;
-    $sql = "SELECT `{$meta['pk']}` AS kode, `{$meta['name_col']}` AS nama FROM `{$meta['table']}` ORDER BY `{$meta['name_col']}` ASC";
-    $res = @mysqli_query($koneksi, $sql);
-    if ($res) {
-        while ($r = mysqli_fetch_assoc($res)) {
-            $refRows[] = [$info['label'], $r['kode'], $r['nama']];
-        }
-    }
-}
-if (empty($refRows)) {
-    $refRows[] = ['(belum ada data master)', '-', '-'];
-}
-
-$tmpFile = tempnam(sys_get_temp_dir(), 'idcard_tpl_') . '.xlsx';
-xlsxLiteWrite($tmpFile, $headers, $exampleRows, [
-    ['title' => 'Referensi Kode', 'headers' => ['Jenis', 'Kode', 'Nama'], 'rows' => $refRows],
+$tmpFile = sys_get_temp_dir() . '/idcard_tpl_' . bin2hex(random_bytes(8)) . '.xlsx';
+xlsxLiteWrite($tmpFile, $headers, $rows, [], [
+    // kolom ke-4 (D) = Status
+    ['col' => 3, 'options' => ['MAGANG', 'KONTRAK', 'TETAP'], 'lastRow' => 1000],
+    // kolom ke-5 (E) = Aktif
+    ['col' => 4, 'options' => ['Y', 'N'], 'lastRow' => 1000],
 ]);
 
 header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
