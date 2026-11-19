@@ -143,7 +143,7 @@ function resolvePrintName(array $karyawan, $mode)
         return $karyawan['NamaLengkap'];
     }
     if (!empty($karyawan['NamaIDCard'])) {
-        return $karyawan['NamaIDCard'];
+        return strtoupper($karyawan['NamaIDCard']); // nama kartu selalu kapital, termasuk data lama
     }
-    return $karyawan['NamaLengkap'] ?? '';
+    return strtoupper($karyawan['NamaLengkap'] ?? '');
 }
