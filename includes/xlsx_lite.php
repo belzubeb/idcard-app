@@ -146,8 +146,10 @@ function xlsxLiteIndexToCol(int $index): string
  * @param array  $headers    daftar nama kolom, mis. ['NIK','NamaLengkap',...]
  * @param array  $rows       array of array (urutan sesuai $headers), boleh kosong
  * @param array  $sheets     opsional: sheet tambahan [ ['title'=>'Referensi','headers'=>[...], 'rows'=>[...]] ]
+ * @param array  $dropdowns  opsional: dropdown validasi di sheet pertama:
+ *                           [ ['col'=>index kolom 0-based, 'options'=>['A','B'], 'lastRow'=>1000] ]
  */
-function xlsxLiteWrite(string $filePath, array $headers, array $rows, array $extraSheets = []): bool
+function xlsxLiteWrite(string $filePath, array $headers, array $rows, array $extraSheets = [], array $dropdowns = []): bool
 {
     if (file_exists($filePath)) @unlink($filePath);
     $zip = new ZipArchive();
@@ -165,7 +167,10 @@ function xlsxLiteWrite(string $filePath, array $headers, array $rows, array $ext
     $zip->addFromString('xl/styles.xml', xlsxLiteStylesXml());
 
     foreach ($allSheets as $i => $sheetDef) {
-        $zip->addFromString('xl/worksheets/sheet' . ($i + 1) . '.xml', xlsxLiteSheetXml($sheetDef['headers'], $sheetDef['rows']));
+        $zip->addFromString(
+            'xl/worksheets/sheet' . ($i + 1) . '.xml',
+            xlsxLiteSheetXml($sheetDef['headers'], $sheetDef['rows'], $i === 0 ? $dropdowns : [])
+        );
     }
 
     $zip->close();
@@ -233,10 +238,13 @@ function xlsxLiteStylesXml(): string
         '<cellXfs count="2">' .
         '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>' .
         '<xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"/>' .
-        '</cellXfs></styleSheet>';
+        '</cellXfs>' .
+        // cellStyles wajib ada supaya Excel/library lain tidak menganggap file "tanpa style default"
+        '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>' .
+        '</styleSheet>';
 }
 
-function xlsxLiteSheetXml(array $headers, array $rows): string
+function xlsxLiteSheetXml(array $headers, array $rows, array $dropdowns = []): string
 {
     $xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' .
         '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' .
@@ -263,6 +271,25 @@ function xlsxLiteSheetXml(array $headers, array $rows): string
         $rNum++;
     }
 
-    $xml .= '</sheetData></worksheet>';
+    $xml .= '</sheetData>';
+
+    // ---- Dropdown validasi Excel (type="list") ----
+    if (!empty($dropdowns)) {
+        $xml .= '<dataValidations count="' . count($dropdowns) . '">';
+        foreach ($dropdowns as $d) {
+            $col = xlsxLiteIndexToCol((int) ($d['col'] ?? 0));
+            $lastRow = max(2, (int) ($d['lastRow'] ?? 1000));
+            $opts = array_map(fn($v) => (string) $v, $d['options'] ?? []);
+            $formula = '"' . implode(',', $opts) . '"';
+            $xml .= '<dataValidation type="list" allowBlank="1" showInputMessage="1" showErrorMessage="1" '
+                . 'errorTitle="Pilihan tidak valid" error="Pilih salah satu dari: ' . htmlspecialchars(implode(', ', $opts), ENT_XML1) . '" '
+                . 'sqref="' . $col . '2:' . $col . $lastRow . '">'
+                . '<formula1>' . htmlspecialchars($formula, ENT_XML1) . '</formula1>'
+                . '</dataValidation>';
+        }
+        $xml .= '</dataValidations>';
+    }
+
+    $xml .= '</worksheet>';
     return $xml;
 }
