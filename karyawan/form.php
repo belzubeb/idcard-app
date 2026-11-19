@@ -39,10 +39,8 @@ function getDropdownOpts(mysqli $koneksi, $meta)
     if ($res) while ($r = mysqli_fetch_assoc($res)) $opts[] = $r;
     return $opts;
 }
-$deptOpts = getDropdownOpts($koneksi, getMasterMeta($koneksi, $masterList['departemen']['table']));
-$jabOpts = getDropdownOpts($koneksi, getMasterMeta($koneksi, $masterList['jabatan']['table']));
+// Departemen, Jabatan & LPK sudah dinonaktifkan di UI (data/table DB tetap ada).
 $statusOpts = getDropdownOpts($koneksi, getMasterMeta($koneksi, $masterList['status']['table']));
-$lpkOpts = getDropdownOpts($koneksi, getMasterMeta($koneksi, $masterList['lpk']['table']));
 
 require_once __DIR__ . '/../includes/header.php';
 ?>
@@ -71,10 +69,10 @@ require_once __DIR__ . '/../includes/header.php';
             </div>
 
             <div class="form-field">
-                <label>Nama di ID Card <span class="req">*</span> <span class="hint">(nama pendek, default dipakai saat cetak)</span></label>
+                <label>Nama di ID Card <span class="req">*</span> <span class="hint">(nama pendek, otomatis HURUF KAPITAL, default saat cetak)</span></label>
                 <div class="input-with-btn">
                     <input type="text" id="namaIdCard" name="NamaIDCard" required value="<?= htmlspecialchars($karyawan['NamaIDCard']) ?>" placeholder="mis. AKHDAN NAJIB">
-                    <button type="button" class="btn secondary small" onclick="document.getElementById('namaIdCard').value = document.getElementById('namaLengkap').value;">= Nama Lengkap</button>
+                    <button type="button" class="btn secondary small" onclick="document.getElementById('namaIdCard').value = document.getElementById('namaLengkap').value.toUpperCase();">= Nama Lengkap</button>
                 </div>
             </div>
 
@@ -86,46 +84,14 @@ require_once __DIR__ . '/../includes/header.php';
                 </select>
             </div>
 
-            <div class="form-field-row">
-                <div class="form-field">
-                    <label>Departemen</label>
-                    <select name="KodeDepartemen">
-                        <option value="">- Pilih -</option>
-                        <?php foreach ($deptOpts as $o): ?>
-                            <option value="<?= htmlspecialchars($o['kode']) ?>" <?= $karyawan['KodeDepartemen'] === $o['kode'] ? 'selected' : '' ?>><?= htmlspecialchars($o['nama']) ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-                <div class="form-field">
-                    <label>Jabatan</label>
-                    <select name="KodeJabatan">
-                        <option value="">- Pilih -</option>
-                        <?php foreach ($jabOpts as $o): ?>
-                            <option value="<?= htmlspecialchars($o['kode']) ?>" <?= $karyawan['KodeJabatan'] === $o['kode'] ? 'selected' : '' ?>><?= htmlspecialchars($o['nama']) ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-            </div>
-
-            <div class="form-field-row">
-                <div class="form-field">
-                    <label>Status <span class="hint">(menentukan template kartu)</span></label>
-                    <select name="KodeStatus">
-                        <option value="">- Pilih -</option>
-                        <?php foreach ($statusOpts as $o): ?>
-                            <option value="<?= htmlspecialchars($o['kode']) ?>" <?= $karyawan['KodeStatus'] === $o['kode'] ? 'selected' : '' ?>><?= htmlspecialchars($o['nama']) ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-                <div class="form-field">
-                    <label>LPK</label>
-                    <select name="KodeLPK">
-                        <option value="">- Pilih -</option>
-                        <?php foreach ($lpkOpts as $o): ?>
-                            <option value="<?= htmlspecialchars($o['kode']) ?>" <?= $karyawan['KodeLPK'] === $o['kode'] ? 'selected' : '' ?>><?= htmlspecialchars($o['nama']) ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
+            <div class="form-field">
+                <label>Status <span class="hint">(menentukan template kartu)</span></label>
+                <select name="KodeStatus">
+                    <option value="">- Pilih -</option>
+                    <?php foreach ($statusOpts as $o): ?>
+                        <option value="<?= htmlspecialchars($o['kode']) ?>" <?= $karyawan['KodeStatus'] === $o['kode'] ? 'selected' : '' ?>><?= htmlspecialchars($o['nama']) ?></option>
+                    <?php endforeach; ?>
+                </select>
             </div>
 
             <div class="form-field-row">
