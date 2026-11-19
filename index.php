@@ -46,7 +46,7 @@ if ($res && $row = mysqli_fetch_assoc($res)) {
     <a class="menu-card" href="master/index.php">
         <div class="menu-card-icon"><?= icon('folder', 22) ?></div>
         <h3>Master Data</h3>
-        <p>Kelola Departemen, Jabatan, Status, dan LPK.</p>
+        <p>Kelola Status &amp; layout kartu. Departemen, Jabatan dan LPK sudah dinonaktifkan di UI.</p>
     </a>
 </div>
 
