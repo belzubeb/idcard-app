@@ -16,19 +16,23 @@ $id = isset($_POST['id']) && $_POST['id'] !== '' ? (int) $_POST['id'] : null;
 
 $nik = trim($_POST['NIK'] ?? '');
 $namaLengkap = trim($_POST['NamaLengkap'] ?? '');
-$namaIdCard = trim($_POST['NamaIDCard'] ?? '');
+$namaIdCard = strtoupper(trim($_POST['NamaIDCard'] ?? '')); // nama kartu selalu huruf kapital
 $jk = trim($_POST['JK'] ?? 'L');
-$kodeDept = trim($_POST['KodeDepartemen'] ?? '');
-$kodeJab = trim($_POST['KodeJabatan'] ?? '');
+// Departemen / Jabatan / LPK tidak lagi ada di form.
+// Nilai ini cuma dipakai saat INSERT; saat UPDATE kolomnya sengaja tidak disentuh
+// supaya data lama di database tetap utuh (tidak ikut terhapus/tertimpa '').
+// Kode master sengaja dikosongkan, bukan kode palsu (UMUM/STAF) yang tidak ada di tabel master.
+$kodeDept = '';
+$kodeJab = '';
 $kodeStatus = trim($_POST['KodeStatus'] ?? '');
-$kodeLpk = trim($_POST['KodeLPK'] ?? '');
+$kodeLpk = '';
 $tglMasuk = trim($_POST['TglMasuk'] ?? '') ?: date('Y-m-d');
 $aktif = ($_POST['Aktif'] ?? 'Y') === 'N' ? 'N' : 'Y';
 
 $errors = [];
 if ($nik === '') $errors[] = 'NIK wajib diisi.';
 if ($namaLengkap === '') $errors[] = 'Nama Lengkap wajib diisi.';
-if ($namaIdCard === '') $namaIdCard = $namaLengkap;
+if ($namaIdCard === '') $namaIdCard = strtoupper($namaLengkap);
 
 // ---- Foto upload (opsional) ----
 $fotoBlob = null;
@@ -52,13 +56,13 @@ if (!empty($errors)) {
 if ($id) {
     // ==== UPDATE ====
     if ($hasNewFoto) {
-        $sql = "UPDATE tbkaryawan SET NIK=?, NamaLengkap=?, NamaIDCard=?, JK=?, Foto=?, KodeDepartemen=?, KodeJabatan=?, KodeStatus=?, KodeLPK=?, TglMasuk=?, Aktif=?, LastDt=NOW() WHERE ID=?";
+        $sql = "UPDATE tbkaryawan SET NIK=?, NamaLengkap=?, NamaIDCard=?, JK=?, Foto=?, KodeStatus=?, TglMasuk=?, Aktif=?, LastDt=NOW() WHERE ID=?";
         $stmt = mysqli_prepare($koneksi, $sql);
-        mysqli_stmt_bind_param($stmt, 'sssssssssssi', $nik, $namaLengkap, $namaIdCard, $jk, $fotoBlob, $kodeDept, $kodeJab, $kodeStatus, $kodeLpk, $tglMasuk, $aktif, $id);
+        mysqli_stmt_bind_param($stmt, 'ssssssssi', $nik, $namaLengkap, $namaIdCard, $jk, $fotoBlob, $kodeStatus, $tglMasuk, $aktif, $id);
     } else {
-        $sql = "UPDATE tbkaryawan SET NIK=?, NamaLengkap=?, NamaIDCard=?, JK=?, KodeDepartemen=?, KodeJabatan=?, KodeStatus=?, KodeLPK=?, TglMasuk=?, Aktif=?, LastDt=NOW() WHERE ID=?";
+        $sql = "UPDATE tbkaryawan SET NIK=?, NamaLengkap=?, NamaIDCard=?, JK=?, KodeStatus=?, TglMasuk=?, Aktif=?, LastDt=NOW() WHERE ID=?";
         $stmt = mysqli_prepare($koneksi, $sql);
-        mysqli_stmt_bind_param($stmt, 'ssssssssssi', $nik, $namaLengkap, $namaIdCard, $jk, $kodeDept, $kodeJab, $kodeStatus, $kodeLpk, $tglMasuk, $aktif, $id);
+        mysqli_stmt_bind_param($stmt, 'sssssssi', $nik, $namaLengkap, $namaIdCard, $jk, $kodeStatus, $tglMasuk, $aktif, $id);
     }
     $ok = mysqli_stmt_execute($stmt);
     $err = mysqli_error($koneksi);
