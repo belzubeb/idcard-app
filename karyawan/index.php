@@ -16,8 +16,20 @@ foreach ($masterList as $key => $info) {
 // ==== Bangun query pencarian & filter ====
 $search    = isset($_GET['q']) ? trim($_GET['q']) : '';
 $filterStatus = isset($_GET['status']) ? trim($_GET['status']) : '';
-$filterDept   = isset($_GET['departemen']) ? trim($_GET['departemen']) : '';
+$filterDate   = isset($_GET['tgl_upload']) ? trim($_GET['tgl_upload']) : '';
 $showInactive = isset($_GET['show_inactive']) && $_GET['show_inactive'] === '1';
+
+// ==== Sorting ====
+$allowedSortCols = [
+    'NIK' => 'k.NIK',
+    'Nama' => 'k.NamaIDCard',
+    'Status' => 'k.KodeStatus',
+    'TglMasuk' => 'k.TglMasuk',
+    'TglEntry' => 'k.TglEntry'
+];
+$sortKey = isset($_GET['sort']) && array_key_exists($_GET['sort'], $allowedSortCols) ? $_GET['sort'] : 'TglEntry';
+$sortOrder = isset($_GET['order']) && strtolower($_GET['order']) === 'asc' ? 'ASC' : 'DESC';
+$orderBySql = $allowedSortCols[$sortKey] . ' ' . $sortOrder;
 
 $allowedPerPage = [20, 50, 100, 200];
 $perPage = isset($_GET['per_page']) ? (int) $_GET['per_page'] : 20;
@@ -27,7 +39,7 @@ if (!in_array($perPage, $allowedPerPage, true)) {
 $page = paginateGetPage();
 $offset = ($page - 1) * $perPage;
 
-$selectCols = "k.ID, k.NIK, k.NamaLengkap, k.NamaIDCard, k.KodeDepartemen, k.KodeJabatan, k.KodeStatus, k.KodeLPK, k.Aktif";
+$selectCols = "k.ID, k.NIK, k.NamaLengkap, k.NamaIDCard, k.KodeStatus, k.Aktif, k.TglMasuk, k.TglEntry";
 $joins = '';
 $extraSelects = [];
 
@@ -62,9 +74,9 @@ if ($filterStatus !== '') {
     $params[] = $filterStatus;
     $types .= 's';
 }
-if ($filterDept !== '') {
-    $where[] = "k.KodeDepartemen = ?";
-    $params[] = $filterDept;
+if ($filterDate !== '') {
+    $where[] = "DATE(k.TglEntry) = ?";
+    $params[] = $filterDate;
     $types .= 's';
 }
 
@@ -82,7 +94,7 @@ $totalRows = (int) (mysqli_fetch_assoc($countResult)['total'] ?? 0);
 mysqli_stmt_close($stmt);
 
 // ==== Ambil data untuk halaman aktif ====
-$sql = "SELECT $selectCols FROM tbkaryawan k $joins $whereSql ORDER BY k.NamaIDCard ASC LIMIT ? OFFSET ?";
+$sql = "SELECT $selectCols FROM tbkaryawan k $joins $whereSql ORDER BY $orderBySql LIMIT ? OFFSET ?";
 $stmt = mysqli_prepare($koneksi, $sql);
 $paramsWithLimit = array_merge($params, [$perPage, $offset]);
 $typesWithLimit = $types . 'ii';
@@ -96,7 +108,7 @@ while ($row = mysqli_fetch_assoc($result)) {
 }
 mysqli_stmt_close($stmt);
 
-// ==== Ambil opsi dropdown filter (Status & Departemen) ====
+// ==== Ambil opsi dropdown filter (Status) ====
 function getDropdownOptions(mysqli $koneksi, $meta)
 {
     if ($meta === null) return [];
@@ -111,7 +123,26 @@ function getDropdownOptions(mysqli $koneksi, $meta)
     return $opts;
 }
 $statusOptions = getDropdownOptions($koneksi, $masterMeta['status']);
-$deptOptions   = getDropdownOptions($koneksi, $masterMeta['departemen']);
+?>
+<?php
+// Helper untuk membuat link sorting kolom
+function sortLink($colName, $label) {
+    global $sortKey, $sortOrder;
+    $nextOrder = ($sortKey === $colName && $sortOrder === 'ASC') ? 'desc' : 'asc';
+    $params = $_GET;
+    $params['sort'] = $colName;
+    $params['order'] = $nextOrder;
+    unset($params['page']); // reset pagination ke halaman 1 saat sorting berubah
+    $url = 'index.php?' . http_build_query($params);
+    
+    $iconHtml = '';
+    if ($sortKey === $colName) {
+        $iconHtml = $sortOrder === 'ASC' ? ' <span style="font-size:10px;">▲</span>' : ' <span style="font-size:10px;">▼</span>';
+    } else {
+        $iconHtml = ' <span style="font-size:10px; color:#ccc;">↕</span>';
+    }
+    return '<a href="' . htmlspecialchars($url) . '" style="color:inherit; text-decoration:none; display:inline-flex; align-items:center; gap:4px;">' . $label . $iconHtml . '</a>';
+}
 ?>
 <div class="page-header">
     <h1 class="page-title">Data Karyawan</h1>
@@ -136,22 +167,13 @@ $deptOptions   = getDropdownOptions($koneksi, $masterMeta['departemen']);
             <input type="text" name="q" placeholder="Cari nama atau NIK..." value="<?= htmlspecialchars($search) ?>">
         </div>
 
+        <input type="date" name="tgl_upload" value="<?= htmlspecialchars($filterDate) ?>" title="Filter Tanggal Upload">
+
         <?php if (!empty($statusOptions)): ?>
         <select name="status">
             <option value="">Semua Status</option>
             <?php foreach ($statusOptions as $opt): ?>
                 <option value="<?= htmlspecialchars($opt['kode']) ?>" <?= $filterStatus === $opt['kode'] ? 'selected' : '' ?>>
-                    <?= htmlspecialchars($opt['nama']) ?>
-                </option>
-            <?php endforeach; ?>
-        </select>
-        <?php endif; ?>
-
-        <?php if (!empty($deptOptions)): ?>
-        <select name="departemen">
-            <option value="">Semua Departemen</option>
-            <?php foreach ($deptOptions as $opt): ?>
-                <option value="<?= htmlspecialchars($opt['kode']) ?>" <?= $filterDept === $opt['kode'] ? 'selected' : '' ?>>
                     <?= htmlspecialchars($opt['nama']) ?>
                 </option>
             <?php endforeach; ?>
@@ -170,7 +192,7 @@ $deptOptions   = getDropdownOptions($koneksi, $masterMeta['departemen']);
         </select>
 
         <button type="submit" class="btn">Cari</button>
-        <?php if ($search !== '' || $filterStatus !== '' || $filterDept !== '' || $showInactive): ?>
+        <?php if ($search !== '' || $filterStatus !== '' || $filterDate !== '' || $showInactive): ?>
             <a href="index.php" class="btn secondary">Reset</a>
         <?php endif; ?>
     </form>
@@ -213,17 +235,11 @@ $deptOptions   = getDropdownOptions($koneksi, $masterMeta['departemen']);
                     <th style="width:30px;"></th>
                     <th style="width:44px;">No</th>
                     <th>Foto</th>
-                    <th>NIK</th>
-                    <th>Nama (ID Card)</th>
-                    <?php if (!empty($extraSelects)): ?>
-                        <th>Departemen</th>
-                        <th>Jabatan</th>
-                        <th>Status</th>
-                    <?php else: ?>
-                        <th>Kode Departemen</th>
-                        <th>Kode Jabatan</th>
-                        <th>Kode Status</th>
-                    <?php endif; ?>
+                    <th><?= sortLink('NIK', 'NIK') ?></th>
+                    <th><?= sortLink('Nama', 'Nama (ID Card)') ?></th>
+                    <th><?= sortLink('Status', 'Status') ?></th>
+                    <th><?= sortLink('TglMasuk', 'Tgl Masuk') ?></th>
+                    <th><?= sortLink('TglEntry', 'Tgl Upload') ?></th>
                     <th>Kondisi</th>
                     <th style="width:230px;">Aksi</th>
                 </tr>
@@ -236,12 +252,12 @@ $deptOptions   = getDropdownOptions($koneksi, $masterMeta['departemen']);
                     <td><img class="thumb" src="../includes/foto.php?id=<?= (int)$row['ID'] ?>" alt=""></td>
                     <td><?= htmlspecialchars($row['NIK']) ?></td>
                     <td>
-                        <div class="nama-idcard"><?= htmlspecialchars($row['NamaIDCard']) ?></div>
+                        <div class="nama-idcard"><?= htmlspecialchars(strtoupper($row['NamaIDCard'])) ?></div>
                         <div class="nama-lengkap muted"><?= htmlspecialchars($row['NamaLengkap']) ?></div>
                     </td>
-                    <td><?= htmlspecialchars($row['Nama_Departemen'] ?? $row['KodeDepartemen']) ?></td>
-                    <td><?= htmlspecialchars($row['Nama_Jabatan'] ?? $row['KodeJabatan']) ?></td>
                     <td><span class="badge badge-<?= strtolower(htmlspecialchars($row['KodeStatus'])) ?>"><?= htmlspecialchars($row['Nama_Status'] ?? $row['KodeStatus']) ?></span></td>
+                    <td><?= htmlspecialchars($row['TglMasuk'] ? date('Y-m-d', strtotime($row['TglMasuk'])) : '-') ?></td>
+                    <td><?= htmlspecialchars($row['TglEntry'] ? date('Y-m-d', strtotime($row['TglEntry'])) : '-') ?></td>
                     <td><span class="dot <?= $row['Aktif'] === 'Y' ? 'dot-active' : 'dot-inactive' ?>"><?= $row['Aktif'] === 'Y' ? 'Aktif' : 'Non-aktif' ?></span></td>
                     <td class="actions-cell">
                         <a class="btn small icon-only" href="../cards/generate.php?id=<?= (int)$row['ID'] ?>" target="_blank" title="Cetak nama ID Card"><?= icon('printer', 15) ?></a>
