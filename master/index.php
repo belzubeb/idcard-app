@@ -11,7 +11,8 @@ $masterList = getMasterTableList();
     <h1 class="page-title">Master Data</h1>
 </div>
 <p class="hint" style="margin-top:-14px;">
-    Kelola data referensi yang dipakai di form karyawan (Departemen, Jabatan, Status, LPK).
+    Kelola <strong>Status</strong> &amp; layout kartu. Data Departemen, Jabatan dan LPK sudah dinonaktifkan di UI
+    (tabel &amp; data di database sengaja dibiarkan, tidak dihapus).
 </p>
 
 <div class="menu-grid">
@@ -20,7 +21,11 @@ $masterList = getMasterTableList();
         <h3>Layout Kartu</h3>
         <p>Atur gambar depan/belakang &amp; posisi foto/nama/NIK/barcode per status karyawan.</p>
     </a>
-    <?php foreach ($masterList as $key => $info):
+    <?php
+    // UI dinonaktifkan untuk Departemen, Jabatan & LPK — data DB tetap utuh.
+    $uiDisabled = ['departemen', 'jabatan', 'lpk'];
+    foreach ($masterList as $key => $info):
+        if (in_array($key, $uiDisabled, true)) continue;
         $meta = getMasterMeta($koneksi, $info['table']);
         $count = null;
         if ($meta) {
